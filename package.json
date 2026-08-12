@@ -9,7 +9,6 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@google/genai": "^2.16.0",
     "firebase": "latest",
     "next": "latest",
     "react": "latest",
