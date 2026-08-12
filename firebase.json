@@ -1,0 +1,14 @@
+{
+  "auth": {
+    "providers": {
+      "emailPassword": true,
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "Utilidades",
+        "supportEmail": "danelgzu55@gmail.com",
+        "authorizedRedirectUris": [
+          "https://utilidades-seven.vercel.app"
+        ]
+      }
+    }
+  }
+}
