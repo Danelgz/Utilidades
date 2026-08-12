@@ -11,6 +11,7 @@ import {
 } from "firebase/auth";
 import { FormEvent, useEffect, useState } from "react";
 import { getFirebaseAuth } from "../lib/firebase";
+import { Workspace } from "./workspace";
 
 type AuthMode = "login" | "register";
 
@@ -45,16 +46,19 @@ export function AuthForm() {
   const [password, setPassword] = useState("");
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [authSetup] = useState(() => {
+    try {
+      return { auth: getFirebaseAuth(), error: "" };
+    } catch (authError) {
+      return { auth: null, error: authError instanceof Error ? authError.message : "Firebase aún no está configurado." };
+    }
+  });
+  const [error, setError] = useState(authSetup.error);
 
   useEffect(() => {
-    try {
-      return onAuthStateChanged(getFirebaseAuth(), setUser);
-    } catch (authError) {
-      setError(authError instanceof Error ? authError.message : "Firebase aún no está configurado.");
-      return undefined;
-    }
-  }, []);
+    if (!authSetup.auth) return undefined;
+    return onAuthStateChanged(authSetup.auth, setUser);
+  }, [authSetup.auth]);
 
   async function handleEmailAuth(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -63,12 +67,8 @@ export function AuthForm() {
 
     try {
       const auth = getFirebaseAuth();
-
-      if (mode === "login") {
-        await signInWithEmailAndPassword(auth, email, password);
-      } else {
-        await createUserWithEmailAndPassword(auth, email, password);
-      }
+      if (mode === "login") await signInWithEmailAndPassword(auth, email, password);
+      else await createUserWithEmailAndPassword(auth, email, password);
     } catch (authError) {
       setError(getFirebaseErrorMessage(authError));
     } finally {
@@ -94,77 +94,28 @@ export function AuthForm() {
     await signOut(getFirebaseAuth());
   }
 
-  if (user) {
-    return (
-      <section className="auth-card" aria-labelledby="welcome-title">
-        <p className="eyebrow">Sesión iniciada</p>
-        <h1 id="welcome-title">Hola{user.displayName ? `, ${user.displayName}` : ""}.</h1>
-        <p className="muted">{user.email}</p>
-        <button className="button button-secondary" type="button" onClick={handleSignOut}>
-          Cerrar sesión
-        </button>
-      </section>
-    );
-  }
+  if (user) return <Workspace user={user} onSignOut={handleSignOut} />;
 
   return (
     <section className="auth-card" aria-labelledby="auth-title">
       <p className="eyebrow">Utilidades</p>
       <h1 id="auth-title">{mode === "login" ? "Bienvenido de nuevo" : "Crea tu cuenta"}</h1>
-      <p className="muted">
-        {mode === "login"
-          ? "Accede para continuar."
-          : "Regístrate para empezar a utilizar la aplicación."}
-      </p>
-
+      <p className="muted">{mode === "login" ? "Accede para continuar." : "Regístrate para empezar a utilizar la aplicación."}</p>
       <button className="button button-google" type="button" onClick={handleGoogleAuth} disabled={loading}>
-        <span className="google-mark" aria-hidden="true">G</span>
-        Continuar con Google
+        <span className="google-mark" aria-hidden="true">G</span>Continuar con Google
       </button>
-
       <div className="divider"><span>o con correo</span></div>
-
       <form onSubmit={handleEmailAuth}>
         <label htmlFor="email">Correo electrónico</label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          autoComplete="email"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          required
-        />
-
+        <input id="email" name="email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
         <label htmlFor="password">Contraseña</label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          autoComplete={mode === "login" ? "current-password" : "new-password"}
-          minLength={6}
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          required
-        />
-
+        <input id="password" name="password" type="password" autoComplete={mode === "login" ? "current-password" : "new-password"} minLength={6} value={password} onChange={(event) => setPassword(event.target.value)} required />
         {error ? <p className="error" role="alert">{error}</p> : null}
-
-        <button className="button button-primary" type="submit" disabled={loading}>
-          {loading ? "Procesando…" : mode === "login" ? "Iniciar sesión" : "Crear cuenta"}
-        </button>
+        <button className="button button-primary" type="submit" disabled={loading}>{loading ? "Procesando…" : mode === "login" ? "Iniciar sesión" : "Crear cuenta"}</button>
       </form>
-
       <p className="switch-mode">
         {mode === "login" ? "¿Aún no tienes cuenta?" : "¿Ya tienes una cuenta?"}{" "}
-        <button
-          type="button"
-          className="text-button"
-          onClick={() => {
-            setError("");
-            setMode(mode === "login" ? "register" : "login");
-          }}
-        >
+        <button type="button" className="text-button" onClick={() => { setError(""); setMode(mode === "login" ? "register" : "login"); }}>
           {mode === "login" ? "Regístrate" : "Inicia sesión"}
         </button>
       </p>
