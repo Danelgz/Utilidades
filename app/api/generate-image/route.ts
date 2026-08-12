@@ -87,6 +87,11 @@ function buildImagePrompt(message: string, answers: Answers) {
   ].filter(Boolean).join("\n\n");
 }
 
+function getApiErrorStatus(error: unknown) {
+  if (typeof error !== "object" || error === null || !("status" in error)) return null;
+  return typeof error.status === "number" ? error.status : null;
+}
+
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as { message?: unknown; answers?: Answers };
@@ -122,6 +127,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ type: "image", imageUrl: `data:${mimeType};base64,${imagePart.inlineData.data}` });
   } catch (error) {
     console.error("Image generation failed", error);
+    if (getApiErrorStatus(error) === 429) {
+      return NextResponse.json(
+        { error: "La clave de Gemini no tiene cuota disponible. Activa la facturaci\u00f3n o aumenta el l\u00edmite de la API para generar im\u00e1genes." },
+        { status: 429 },
+      );
+    }
     return NextResponse.json({ error: "No se ha podido generar la imagen. Prueba con otra descripción." }, { status: 500 });
   }
 }
